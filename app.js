@@ -512,7 +512,10 @@ const App = () => {
                 {selectedVibe && (
                   <button 
                     className="button secondary"
-                    onClick={() => runCodeInSandbox(selectedVibe.code, selectedVibe.language)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent event bubbling
+                      runCodeInSandbox(selectedVibe.code, selectedVibe.language);
+                    }}
                   >
                     Run
                   </button>
