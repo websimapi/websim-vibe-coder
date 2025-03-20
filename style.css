@@ -163,11 +163,6 @@ body {
   transition: all 0.2s ease;
 }
 
-.button.small {
-  padding: 4px 8px;
-  font-size: 0.8rem;
-}
-
 .button:hover {
   background-color: var(--highlight);
 }
@@ -194,11 +189,17 @@ body {
   border-radius: var(--border-radius);
   padding: 15px;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.vibe-card:hover {
+.vibe-card:hover, .vibe-card.selected {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.vibe-card.selected {
+  border: 1px solid var(--highlight);
+  background-color: rgba(245, 194, 231, 0.1);
 }
 
 .vibe-header {
@@ -254,7 +255,6 @@ body {
   font-size: 0.8rem;
   color: var(--text);
   opacity: 0.7;
-  align-items: center;
 }
 
 .vibe-tags {
@@ -332,6 +332,15 @@ body {
 
 .vote-count {
   font-size: 0.9rem;
+}
+
+.error {
+  color: var(--error);
+  padding: 10px;
+  border-radius: var(--border-radius);
+  background-color: rgba(243, 139, 168, 0.1);
+  border: 1px solid var(--error);
+  margin-top: 10px;
 }
 
 @media (max-width: 768px) {

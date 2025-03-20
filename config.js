@@ -14,6 +14,9 @@ export const CONFIG = {
   availableTags: [
     "animation", "algorithm", "component", "utility", 
     "game", "visual", "beginner", "advanced", "fun"
-  ]
+  ],
+  
+  // Preview settings
+  previewFrameHeight: 400,
+  defaultHtml: `<div id="output"></div><div id="error" style="color:red;"></div>`
 };
-

@@ -14,6 +14,7 @@ const App = () => {
     tags: []
   });
   const [isGenerating, setIsGenerating] = React.useState(false);
+  const [selectedVibe, setSelectedVibe] = React.useState(null);
 
   // Get peers using React's useSyncExternalStore
   const peers = React.useSyncExternalStore(
@@ -90,14 +91,10 @@ const App = () => {
         ]
       });
 
-      const generatedCode = completion.content.trim();
       setNewVibe({
         ...newVibe,
-        code: generatedCode
+        code: completion.content.trim()
       });
-      
-      // Update the preview 
-      updatePreview(generatedCode, newVibe.language);
     } catch (error) {
       console.error('Failed to generate code:', error);
       alert('Failed to generate code. Please try again.');
@@ -142,98 +139,6 @@ const App = () => {
     );
   };
 
-  // Function to update code preview
-  const updatePreview = (code, language) => {
-    const previewContainer = document.getElementById('preview-container');
-    
-    if (!code) {
-      previewContainer.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: var(--text); opacity: 0.7">
-          <p>Select a vibe to see a live preview</p>
-          <p style="font-size: 3rem; margin-top: 20px">🚀</p>
-        </div>
-      `;
-      return;
-    }
-    
-    try {
-      if (language === 'html') {
-        previewContainer.innerHTML = code;
-      } else if (language === 'javascript' || language === 'react') {
-        // Create a sandboxed iframe to run the code
-        previewContainer.innerHTML = '<iframe id="preview-iframe" style="width:100%; height:100%; border:none;"></iframe>';
-        const iframe = document.getElementById('preview-iframe');
-        const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-        
-        iframeDocument.open();
-        iframeDocument.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>body { font-family: sans-serif; padding: 20px; }</style>
-            </head>
-            <body>
-              <div id="output"></div>
-              <script>
-                try {
-                  // Redirect console.log to the output div
-                  const originalConsoleLog = console.log;
-                  console.log = function(...args) {
-                    originalConsoleLog.apply(console, args);
-                    const output = document.getElementById('output');
-                    const logItem = document.createElement('div');
-                    logItem.textContent = args.join(' ');
-                    output.appendChild(logItem);
-                  };
-                  
-                  // Execute the code
-                  ${code}
-                } catch (error) {
-                  const output = document.getElementById('output');
-                  const errorItem = document.createElement('div');
-                  errorItem.style.color = 'red';
-                  errorItem.textContent = 'Error: ' + error.message;
-                  output.appendChild(errorItem);
-                }
-              </script>
-            </body>
-          </html>
-        `);
-        iframeDocument.close();
-      } else if (language === 'css') {
-        previewContainer.innerHTML = `
-          <div style="height: 100%; display: flex; flex-direction: column;">
-            <style id="preview-style">${code}</style>
-            <div style="flex: 1; overflow: auto; padding: 20px;">
-              <div class="preview-box" style="margin-bottom: 10px; padding: 10px; border: 1px solid #555;">Box Element</div>
-              <div class="preview-card" style="margin-bottom: 10px; padding: 10px; border: 1px solid #555;">Card Element</div>
-              <button class="preview-button" style="margin-bottom: 10px; padding: 10px;">Button Element</button>
-              <div class="preview-container" style="padding: 10px; border: 1px solid #555;">Container with <span class="preview-text">Text</span> inside</div>
-            </div>
-          </div>
-        `;
-      } else {
-        // For other languages, just show syntax highlighted code
-        previewContainer.innerHTML = `
-          <pre style="padding: 20px; overflow: auto; height: 100%;">${code}</pre>
-        `;
-      }
-    } catch (error) {
-      console.error('Preview error:', error);
-      previewContainer.innerHTML = `
-        <div style="padding: 20px; color: var(--error);">
-          <p>Error previewing code:</p>
-          <pre>${error.message}</pre>
-        </div>
-      `;
-    }
-  };
-
-  // Function to handle vibe selection for preview
-  const handleVibeSelect = (vibe) => {
-    updatePreview(vibe.code, vibe.language);
-  };
-
   // Toggle tag selection
   const toggleTag = (tag) => {
     if (newVibe.tags.includes(tag)) {
@@ -247,6 +152,103 @@ const App = () => {
         tags: [...newVibe.tags, tag]
       });
     }
+  };
+
+  // Function to run code in preview
+  const runCode = (code, language) => {
+    const previewContainer = document.getElementById('preview-container');
+    
+    // Clear previous content
+    while (previewContainer.firstChild) {
+      previewContainer.removeChild(previewContainer.firstChild);
+    }
+    
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.height = `${CONFIG.previewFrameHeight}px`;
+      iframe.style.border = 'none';
+      iframe.style.borderRadius = 'var(--border-radius)';
+      
+      previewContainer.appendChild(iframe);
+      
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      iframeDoc.open();
+      
+      // Set up basic HTML structure
+      let htmlContent = `<!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            padding: 20px;
+            margin: 0;
+            color: #333;
+          }
+        </style>
+      </head>
+      <body>${CONFIG.defaultHtml}</body>
+      </html>`;
+      
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+      
+      // Execute the code based on language
+      if (language === 'javascript') {
+        const script = iframeDoc.createElement('script');
+        script.textContent = `
+          try {
+            ${code}
+          } catch (error) {
+            document.getElementById('error').textContent = error.message;
+            console.error(error);
+          }
+        `;
+        iframeDoc.body.appendChild(script);
+      } else if (language === 'html') {
+        iframeDoc.body.innerHTML = code;
+      } else if (language === 'css') {
+        const style = iframeDoc.createElement('style');
+        style.textContent = code;
+        iframeDoc.head.appendChild(style);
+      } else if (language === 'react') {
+        // Load React libraries
+        const reactScript = iframeDoc.createElement('script');
+        reactScript.src = 'https://unpkg.com/react@18/umd/react.development.js';
+        iframeDoc.head.appendChild(reactScript);
+        
+        const reactDomScript = iframeDoc.createElement('script');
+        reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
+        iframeDoc.head.appendChild(reactDomScript);
+        
+        const babelScript = iframeDoc.createElement('script');
+        babelScript.src = 'https://unpkg.com/@babel/standalone/babel.min.js';
+        iframeDoc.head.appendChild(babelScript);
+        
+        // Add execution script
+        const script = iframeDoc.createElement('script');
+        script.type = 'text/babel';
+        script.textContent = `
+          try {
+            ${code}
+          } catch (error) {
+            document.getElementById('error').textContent = error.message;
+            console.error(error);
+          }
+        `;
+        iframeDoc.body.appendChild(script);
+      }
+    } catch (error) {
+      console.error('Failed to run code:', error);
+      previewContainer.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+    }
+  };
+
+  // Function to handle selecting a vibe for preview
+  const handleSelectVibe = (vibe) => {
+    setSelectedVibe(vibe);
+    runCode(vibe.code, vibe.language);
   };
 
   return (
@@ -318,7 +320,7 @@ const App = () => {
                     onClick={generateCode}
                     disabled={isGenerating}
                   >
-                    {isGenerating ? 'Generating...' : '✨ Generate Code'}
+                    {isGenerating ? 'Generating...' : ' Generate Code'}
                   </button>
                 </div>
               </div>
@@ -369,7 +371,7 @@ const App = () => {
                 </div>
               </div>
 
-              <button type="submit" className="button">Share Vibe ✨</button>
+              <button type="submit" className="button">Share Vibe </button>
             </form>
           )}
 
@@ -389,7 +391,11 @@ const App = () => {
           {activeTab === 'vibes' && vibes.length > 0 && (
             <ul className="vibe-list">
               {[...vibes].reverse().map(vibe => (
-                <li key={vibe.id} className="vibe-card">
+                <li 
+                  key={vibe.id} 
+                  className={`vibe-card ${selectedVibe && selectedVibe.id === vibe.id ? 'selected' : ''}`}
+                  onClick={() => handleSelectVibe(vibe)}
+                >
                   <div className="vibe-header">
                     <div className="vibe-user">
                       <div className="user-avatar">
@@ -406,7 +412,7 @@ const App = () => {
                           className={`vote-btn ${hasUpvoted(vibe.id) ? 'active' : ''}`}
                           onClick={() => toggleUpvote(vibe.id)}
                         >
-                          ⭐
+                          
                         </button>
                         <span className="vote-count">{countUpvotes(vibe.id)}</span>
                       </div>
@@ -430,12 +436,6 @@ const App = () => {
                         ))}
                       </div>
                     )}
-                    <button 
-                      className="button secondary small"
-                      onClick={() => handleVibeSelect(vibe)}
-                    >
-                      View Preview
-                    </button>
                   </div>
                 </li>
               ))}
@@ -446,22 +446,26 @@ const App = () => {
         <div className="vibe-container">
           <div className="code-editor">
             <div className="code-toolbar">
-              <h3>🔥 Live Preview</h3>
+              <h3> Live Preview</h3>
               <div className="code-actions">
-                <button 
-                  className="button secondary"
-                  onClick={() => updatePreview(newVibe.code, newVibe.language)}
-                >
-                  Run
-                </button>
+                {selectedVibe && (
+                  <button 
+                    className="button" 
+                    onClick={() => runCode(selectedVibe.code, selectedVibe.language)}
+                  >
+                    Run
+                  </button>
+                )}
               </div>
             </div>
             <div className="editor-container">
               <div id="preview-container" style={{height: '100%', overflow: 'auto'}}>
-                <div style={{padding: '20px', textAlign: 'center', color: 'var(--text)', opacity: 0.7}}>
-                  <p>Select a vibe to see a live preview</p>
-                  <p style={{fontSize: '3rem', marginTop: '20px'}}>🚀</p>
-                </div>
+                {!selectedVibe && (
+                  <div style={{padding: '20px', textAlign: 'center', color: 'var(--text)', opacity: 0.7}}>
+                    <p>Select a vibe to see a live preview</p>
+                    <p style={{fontSize: '3rem', marginTop: '20px'}}></p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
