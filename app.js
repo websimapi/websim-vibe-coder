@@ -154,101 +154,159 @@ const App = () => {
     }
   };
 
-  // Function to run code in preview
-  const runCode = (code, language) => {
+  // Function to run code in sandbox
+  const runCodeInSandbox = (code, language) => {
     const previewContainer = document.getElementById('preview-container');
     
     // Clear previous content
-    while (previewContainer.firstChild) {
-      previewContainer.removeChild(previewContainer.firstChild);
-    }
+    previewContainer.innerHTML = '';
+    
+    if (!code) return;
     
     try {
-      const iframe = document.createElement('iframe');
-      iframe.style.width = '100%';
-      iframe.style.height = `${CONFIG.previewFrameHeight}px`;
-      iframe.style.border = 'none';
-      iframe.style.borderRadius = 'var(--border-radius)';
-      
-      previewContainer.appendChild(iframe);
-      
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-      iframeDoc.open();
-      
-      // Set up basic HTML structure
-      let htmlContent = `<!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            padding: 20px;
-            margin: 0;
-            color: #333;
-          }
-        </style>
-      </head>
-      <body>${CONFIG.defaultHtml}</body>
-      </html>`;
-      
-      iframeDoc.write(htmlContent);
-      iframeDoc.close();
-      
-      // Execute the code based on language
       if (language === 'javascript') {
-        const script = iframeDoc.createElement('script');
-        script.textContent = `
-          try {
-            ${code}
-          } catch (error) {
-            document.getElementById('error').textContent = error.message;
-            console.error(error);
-          }
+        // Create sandbox iframe
+        const sandboxFrame = document.createElement('iframe');
+        sandboxFrame.style.width = '100%';
+        sandboxFrame.style.height = '100%';
+        sandboxFrame.style.border = 'none';
+        sandboxFrame.sandbox = 'allow-scripts';
+        previewContainer.appendChild(sandboxFrame);
+        
+        // Add content to iframe
+        const frameContent = `
+          <html>
+            <head>
+              <style>body { margin: 0; padding: 10px; color: white; font-family: sans-serif; }</style>
+            </head>
+            <body>
+              <div id="output"></div>
+              <script>
+                // Capture console output
+                const output = document.getElementById('output');
+                const originalConsole = console;
+                console = {
+                  log: function(...args) {
+                    originalConsole.log(...args);
+                    const logElement = document.createElement('div');
+                    logElement.textContent = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+                    output.appendChild(logElement);
+                  },
+                  error: function(...args) {
+                    originalConsole.error(...args);
+                    const logElement = document.createElement('div');
+                    logElement.style.color = 'red';
+                    logElement.textContent = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+                    output.appendChild(logElement);
+                  }
+                };
+
+                try {
+                  ${code}
+                } catch(error) {
+                  console.error('Error:', error.message);
+                }
+              </script>
+            </body>
+          </html>
         `;
-        iframeDoc.body.appendChild(script);
+        
+        sandboxFrame.srcdoc = frameContent;
       } else if (language === 'html') {
-        iframeDoc.body.innerHTML = code;
+        // For HTML, render directly
+        const sandboxFrame = document.createElement('iframe');
+        sandboxFrame.style.width = '100%';
+        sandboxFrame.style.height = '100%';
+        sandboxFrame.style.border = 'none';
+        sandboxFrame.sandbox = 'allow-scripts';
+        previewContainer.appendChild(sandboxFrame);
+        
+        sandboxFrame.srcdoc = code;
       } else if (language === 'css') {
-        const style = iframeDoc.createElement('style');
-        style.textContent = code;
-        iframeDoc.head.appendChild(style);
-      } else if (language === 'react') {
-        // Load React libraries
-        const reactScript = iframeDoc.createElement('script');
-        reactScript.src = 'https://unpkg.com/react@18/umd/react.development.js';
-        iframeDoc.head.appendChild(reactScript);
+        // For CSS, create a demo with some elements
+        const sandboxFrame = document.createElement('iframe');
+        sandboxFrame.style.width = '100%';
+        sandboxFrame.style.height = '100%';
+        sandboxFrame.style.border = 'none';
+        previewContainer.appendChild(sandboxFrame);
         
-        const reactDomScript = iframeDoc.createElement('script');
-        reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
-        iframeDoc.head.appendChild(reactDomScript);
-        
-        const babelScript = iframeDoc.createElement('script');
-        babelScript.src = 'https://unpkg.com/@babel/standalone/babel.min.js';
-        iframeDoc.head.appendChild(babelScript);
-        
-        // Add execution script
-        const script = iframeDoc.createElement('script');
-        script.type = 'text/babel';
-        script.textContent = `
-          try {
-            ${code}
-          } catch (error) {
-            document.getElementById('error').textContent = error.message;
-            console.error(error);
-          }
+        const frameContent = `
+          <html>
+            <head>
+              <style>${code}</style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>CSS Preview</h1>
+                <p>This is paragraph text</p>
+                <button>Button Element</button>
+                <div class="box">Div with class "box"</div>
+              </div>
+            </body>
+          </html>
         `;
-        iframeDoc.body.appendChild(script);
+        
+        sandboxFrame.srcdoc = frameContent;
+      } else if (language === 'python') {
+        // For Python, show message that it can't be executed in browser
+        const messageDiv = document.createElement('div');
+        messageDiv.style.padding = '20px';
+        messageDiv.style.color = 'var(--text)';
+        messageDiv.style.textAlign = 'center';
+        messageDiv.innerHTML = `<p>Python code can't be executed directly in the browser.</p>
+                               <pre style="text-align: left; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px;">${escapeHtml(code)}</pre>`;
+        previewContainer.appendChild(messageDiv);
+      } else if (language === 'react') {
+        // For React, create sandbox with React imported
+        const sandboxFrame = document.createElement('iframe');
+        sandboxFrame.style.width = '100%';
+        sandboxFrame.style.height = '100%';
+        sandboxFrame.style.border = 'none';
+        sandboxFrame.sandbox = 'allow-scripts';
+        previewContainer.appendChild(sandboxFrame);
+        
+        const frameContent = `
+          <html>
+            <head>
+              <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+              <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+              <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+              <style>body { margin: 0; padding: 10px; color: white; font-family: sans-serif; }</style>
+            </head>
+            <body>
+              <div id="root"></div>
+              <div id="error" style="color: red;"></div>
+              <script type="text/babel">
+                try {
+                  ${code}
+                } catch(error) {
+                  document.getElementById('error').textContent = 'Error: ' + error.message;
+                }
+              </script>
+            </body>
+          </html>
+        `;
+        
+        sandboxFrame.srcdoc = frameContent;
       }
     } catch (error) {
-      console.error('Failed to run code:', error);
-      previewContainer.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+      console.error('Error running code:', error);
+      const errorDiv = document.createElement('div');
+      errorDiv.textContent = `Error: ${error.message}`;
+      errorDiv.style.color = 'var(--error)';
+      errorDiv.style.padding = '20px';
+      previewContainer.appendChild(errorDiv);
     }
   };
 
-  // Function to handle selecting a vibe for preview
-  const handleSelectVibe = (vibe) => {
-    setSelectedVibe(vibe);
-    runCode(vibe.code, vibe.language);
+  // Helper function to escape HTML for display
+  const escapeHtml = (unsafe) => {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   };
 
   return (
@@ -320,7 +378,7 @@ const App = () => {
                     onClick={generateCode}
                     disabled={isGenerating}
                   >
-                    {isGenerating ? 'Generating...' : ' Generate Code'}
+                    {isGenerating ? 'Generating...' : '✨ Generate Code'}
                   </button>
                 </div>
               </div>
@@ -371,7 +429,7 @@ const App = () => {
                 </div>
               </div>
 
-              <button type="submit" className="button">Share Vibe </button>
+              <button type="submit" className="button">Share Vibe ✨</button>
             </form>
           )}
 
@@ -393,8 +451,11 @@ const App = () => {
               {[...vibes].reverse().map(vibe => (
                 <li 
                   key={vibe.id} 
-                  className={`vibe-card ${selectedVibe && selectedVibe.id === vibe.id ? 'selected' : ''}`}
-                  onClick={() => handleSelectVibe(vibe)}
+                  className={`vibe-card ${selectedVibe?.id === vibe.id ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedVibe(vibe);
+                    runCodeInSandbox(vibe.code, vibe.language);
+                  }}
                 >
                   <div className="vibe-header">
                     <div className="vibe-user">
@@ -412,7 +473,7 @@ const App = () => {
                           className={`vote-btn ${hasUpvoted(vibe.id) ? 'active' : ''}`}
                           onClick={() => toggleUpvote(vibe.id)}
                         >
-                          
+                          ⭐
                         </button>
                         <span className="vote-count">{countUpvotes(vibe.id)}</span>
                       </div>
@@ -446,12 +507,12 @@ const App = () => {
         <div className="vibe-container">
           <div className="code-editor">
             <div className="code-toolbar">
-              <h3> Live Preview</h3>
+              <h3>🔥 Live Preview {selectedVibe && `- ${selectedVibe.title}`}</h3>
               <div className="code-actions">
                 {selectedVibe && (
                   <button 
-                    className="button" 
-                    onClick={() => runCode(selectedVibe.code, selectedVibe.language)}
+                    className="button secondary"
+                    onClick={() => runCodeInSandbox(selectedVibe.code, selectedVibe.language)}
                   >
                     Run
                   </button>
@@ -463,7 +524,7 @@ const App = () => {
                 {!selectedVibe && (
                   <div style={{padding: '20px', textAlign: 'center', color: 'var(--text)', opacity: 0.7}}>
                     <p>Select a vibe to see a live preview</p>
-                    <p style={{fontSize: '3rem', marginTop: '20px'}}></p>
+                    <p style={{fontSize: '3rem', marginTop: '20px'}}>🚀</p>
                   </div>
                 )}
               </div>

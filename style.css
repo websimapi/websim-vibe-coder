@@ -192,14 +192,14 @@ body {
   cursor: pointer;
 }
 
-.vibe-card:hover, .vibe-card.selected {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+.vibe-card.selected {
+  border: 1px solid var(--accent);
+  background-color: rgba(137, 180, 250, 0.1);
 }
 
-.vibe-card.selected {
-  border: 1px solid var(--highlight);
-  background-color: rgba(245, 194, 231, 0.1);
+.vibe-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .vibe-header {
@@ -332,15 +332,6 @@ body {
 
 .vote-count {
   font-size: 0.9rem;
-}
-
-.error {
-  color: var(--error);
-  padding: 10px;
-  border-radius: var(--border-radius);
-  background-color: rgba(243, 139, 168, 0.1);
-  border: 1px solid var(--error);
-  margin-top: 10px;
 }
 
 @media (max-width: 768px) {
