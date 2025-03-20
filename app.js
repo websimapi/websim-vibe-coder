@@ -13,19 +13,20 @@ const App = () => {
     language: CONFIG.defaultLanguage,
     tags: []
   });
-  
+  const [isGenerating, setIsGenerating] = React.useState(false);
+
   // Get peers using React's useSyncExternalStore
   const peers = React.useSyncExternalStore(
     room.party.subscribe,
     () => room.party.peers
   );
-  
+
   // Get vibes using React's useSyncExternalStore
   const vibes = React.useSyncExternalStore(
     room.collection('vibe').subscribe,
     room.collection('vibe').getList
   );
-  
+
   // Get upvotes
   const upvotes = React.useSyncExternalStore(
     room.collection('upvote').subscribe,
@@ -35,12 +36,12 @@ const App = () => {
   // Function to handle creating a new vibe
   const handleCreateVibe = async (e) => {
     e.preventDefault();
-    
+
     if (!newVibe.title || !newVibe.code) {
       alert('Please provide a title and code for your vibe!');
       return;
     }
-    
+
     try {
       await room.collection('vibe').create({
         title: newVibe.title,
@@ -49,7 +50,7 @@ const App = () => {
         language: newVibe.language,
         tags: newVibe.tags
       });
-      
+
       // Reset form
       setNewVibe({
         title: '',
@@ -58,7 +59,7 @@ const App = () => {
         language: CONFIG.defaultLanguage,
         tags: []
       });
-      
+
       // Switch to vibes tab
       setActiveTab('vibes');
     } catch (error) {
@@ -66,7 +67,41 @@ const App = () => {
       alert('Failed to create vibe. Please try again.');
     }
   };
-  
+
+  // Function to generate code using LLM
+  const generateCode = async () => {
+    if (!newVibe.description) {
+      alert('Please provide a description of what you want to create!');
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const prompt = `Generate ${newVibe.language} code based on this description: ${newVibe.description}
+      The code should be clean, well-commented, and follow best practices.
+      Only output the code, no explanations needed.`;
+
+      const completion = await websim.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      });
+
+      setNewVibe({
+        ...newVibe,
+        code: completion.content.trim()
+      });
+    } catch (error) {
+      console.error('Failed to generate code:', error);
+      alert('Failed to generate code. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Function to toggle upvote
   const toggleUpvote = async (vibeId) => {
     // Check if user has already upvoted this vibe
@@ -74,7 +109,7 @@ const App = () => {
       upvote.vibe_id === vibeId && 
       upvote.username === room.party.client.username
     );
-    
+
     try {
       if (existingUpvote) {
         // Remove upvote if already upvoted
@@ -89,12 +124,12 @@ const App = () => {
       console.error('Failed to toggle upvote:', error);
     }
   };
-  
+
   // Function to count upvotes for a vibe
   const countUpvotes = (vibeId) => {
     return upvotes.filter(upvote => upvote.vibe_id === vibeId).length;
   };
-  
+
   // Function to check if current user has upvoted a vibe
   const hasUpvoted = (vibeId) => {
     return upvotes.some(upvote => 
@@ -136,7 +171,7 @@ const App = () => {
           ))}
         </div>
       </header>
-      
+
       <div className="main-content">
         <div className="lobby-container">
           <div className="code-toolbar">
@@ -155,7 +190,7 @@ const App = () => {
               </button>
             </div>
           </div>
-          
+
           {activeTab === 'create' && (
             <form onSubmit={handleCreateVibe}>
               <div className="form-group">
@@ -170,7 +205,7 @@ const App = () => {
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Description</label>
                 <textarea 
@@ -178,10 +213,20 @@ const App = () => {
                   value={newVibe.description}
                   onChange={(e) => setNewVibe({...newVibe, description: e.target.value})}
                   maxLength="500"
-                  placeholder="Describe what your code does"
+                  placeholder="Describe what your code does or what you want to generate"
                 />
+                <div style={{marginTop: '10px', textAlign: 'right'}}>
+                  <button 
+                    type="button" 
+                    className="button secondary"
+                    onClick={generateCode}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? 'Generating...' : '✨ Generate Code'}
+                  </button>
+                </div>
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Language</label>
                 <select 
@@ -194,7 +239,7 @@ const App = () => {
                   ))}
                 </select>
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Code</label>
                 <textarea 
@@ -202,11 +247,11 @@ const App = () => {
                   value={newVibe.code}
                   onChange={(e) => setNewVibe({...newVibe, code: e.target.value})}
                   maxLength={CONFIG.maxCodeLength}
-                  placeholder={`Paste your ${newVibe.language} code here`}
+                  placeholder={`Your ${newVibe.language} code will appear here after generation, or paste your own`}
                   required
                 />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Tags</label>
                 <div className="vibe-tags" style={{marginBottom: '10px'}}>
@@ -227,11 +272,11 @@ const App = () => {
                   ))}
                 </div>
               </div>
-              
+
               <button type="submit" className="button">Share Vibe ✨</button>
             </form>
           )}
-          
+
           {activeTab === 'vibes' && vibes.length === 0 && (
             <div className="empty-state">
               <div className="emoji">{CONFIG.emptyStateEmoji}</div>
@@ -244,7 +289,7 @@ const App = () => {
               </button>
             </div>
           )}
-          
+
           {activeTab === 'vibes' && vibes.length > 0 && (
             <ul className="vibe-list">
               {[...vibes].reverse().map(vibe => (
@@ -271,13 +316,13 @@ const App = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {vibe.description && (
                     <div className="vibe-description">{vibe.description}</div>
                   )}
-                  
+
                   <pre className="vibe-code">{vibe.code}</pre>
-                  
+
                   <div className="vibe-meta">
                     <div>
                       {new Date(vibe.created_at).toLocaleDateString()}
@@ -295,7 +340,7 @@ const App = () => {
             </ul>
           )}
         </div>
-        
+
         <div className="vibe-container">
           <div className="code-editor">
             <div className="code-toolbar">
@@ -321,4 +366,3 @@ const App = () => {
 
 // Render the app
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
-

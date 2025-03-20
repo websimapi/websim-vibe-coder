@@ -141,7 +141,6 @@ body {
   height: 100%;
   background-color: transparent;
   color: var(--text);
-  font-family: monospace;
   font-size: 14px;
   border: none;
   outline: none;
@@ -149,6 +148,8 @@ body {
   padding: 10px;
   white-space: pre;
   tab-size: 2;
+  min-height: 200px;
+  font-family: monospace;
 }
 
 .button {
@@ -342,4 +343,3 @@ body {
     align-items: flex-start;
   }
 }
-
